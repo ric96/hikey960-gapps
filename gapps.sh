@@ -22,31 +22,17 @@
 # https://github.com/RTAndroid/android_vendor_brcm_rpi3_scripts/blob/aosp-7.1/scripts/gapps.sh
 #
 
-TIMESTAMP="20170207"
+TIMESTAMP="20170517"
 VERSION="7.1"
-VARIANT="pico"
+VARIANT="stock"
 
-SHOW_HELP=false
-ADB_ADDRESS=""
-ARCHITECTURE=""
+ARCHITECTURE="arm64"
 PACKAGE_NAME=""
-INIT_FILE="/etc/init.d/gapps"
+INIT_FILE="/etc/init/gapps.rc"
 
 # ------------------------------------------------
 # Helping functions
 # ------------------------------------------------
-
-show_help()
-{
-cat << EOF
-USAGE:
-  $0 [-h] -a ARCH -i IP
-OPTIONS:
-  -a  Device architecture: x86, x86_64, arm, arm64
-  -h  Show help
-  -i  IP address for ADB
-EOF
-}
 
 check_agreement()
 {
@@ -78,7 +64,7 @@ check_dependency()
 
 reboot_device()
 {
-    adb reboot bootloader > /dev/null &
+    adb reboot bootloader &
     sleep 10
 }
 
@@ -91,9 +77,9 @@ wait_for_adb()
 {
     while true; do
         sleep 1
-        adb kill-server > /dev/null
+        adb kill-server
         sleep 1
-        adb connect $ADB_ADDRESS > /dev/null
+        adb devices
         sleep 1
         if is_booted; then
             break
@@ -103,16 +89,7 @@ wait_for_adb()
 
 prepare_device()
 {
-    echo " * Checking available devices..."
-    ping -c 1 $ADB_ADDRESS > /dev/null 2>&1
-    reachable="$?"
-    if [ "$reachable" -ne "0" ]; then
-        echo "ERR: no device with address $ADB_ADDRESS found"
-        echo ""
-        show_help
-        exit 1
-    fi
-
+ 
     echo " * Enabling root access..."
     wait_for_adb
     adb root
@@ -226,40 +203,12 @@ create_script()
 # Script entry point
 # ------------------------------------------------
 
-
-# save the passed options
-while getopts ":i:a:h" flag; do
-case $flag in
-    "i") ADB_ADDRESS="$OPTARG" ;;
-    "a") ARCHITECTURE="$OPTARG" ;;
-    "h") SHOW_HELP=true ;;
-    *)
-         echo ""
-         echo "ERR: invalid option (-$flag $OPTARG)"
-         echo ""
-         show_help
-         exit 1
-esac
-done
-
-if [[ "$ARCHITECTURE" != "x86" && "$ARCHITECTURE" != "x86_64" && "$ARCHITECTURE" != "arm" && "$ARCHITECTURE" != "arm64" ]]; then
-    echo "ERR: $ARCHITECTURE is not a valid architecture!";
-    show_help
-    exit 1
-fi
-
-if [[ "$SHOW_HELP" = true ]]; then
-    show_help
-    exit 1
-fi
-
 # create the full package name
 PACKAGE_NAME="open_gapps-$ARCHITECTURE-$VERSION-$VARIANT-$TIMESTAMP.zip"
 
 echo "GApps installation script"
 echo "Used package: $PACKAGE_NAME"
 echo "ADB version: $(adb version)"
-echo "ADB IP address: $ADB_ADDRESS"
 echo ""
 
 check_dependency adb phablet-tools
